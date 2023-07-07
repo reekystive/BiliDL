@@ -1,0 +1,54 @@
+name: lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  lint:
+    name: Check lint and format
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3.7.0
+        with:
+          node-version: 18
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2.2.4
+
+      - name: Install dependencies
+        run: |
+          pnpm install
+          pnpm install @microsoft/eslint-formatter-sarif
+
+      - name: Check format
+        run: |
+          pnpm prettier src --check
+        continue-on-error: true
+
+      - name: Run eslint
+        run: |
+          pnpm eslint src \
+          --format @microsoft/eslint-formatter-sarif \
+          --output-file eslint-results.sarif
+        continue-on-error: true
+
+      - name: Upload analysis results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: eslint-results.sarif
+          wait-for-processing: true
